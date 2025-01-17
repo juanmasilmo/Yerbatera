@@ -1,0 +1,224 @@
+-- Tabla: pais
+CREATE TABLE pais (
+    id_pais SERIAL PRIMARY KEY,
+    nombre VARCHAR(255) NOT NULL UNIQUE
+);
+
+-- Tabla: provincias
+CREATE TABLE provincias (
+    id_provincias SERIAL PRIMARY KEY,
+    id_pais INT NOT NULL,
+    nombre VARCHAR(255) NOT NULL,
+    FOREIGN KEY (id_pais) REFERENCES pais(id_pais) ON DELETE CASCADE
+);
+
+-- Tabla: localidades
+CREATE TABLE localidades (
+    id_localidades SERIAL PRIMARY KEY,
+    id_provincias INT NOT NULL,
+    nombre VARCHAR(255) NOT NULL,
+    cp VARCHAR(20) CHECK (cp ~ '^[0-9]{4,10}$'),
+    FOREIGN KEY (id_provincias) REFERENCES provincias(id_provincias) ON DELETE CASCADE
+);
+
+-- Tabla: direcciones
+CREATE TABLE direcciones (
+    id_direcciones SERIAL PRIMARY KEY,
+    id_localidad INT NOT NULL,
+    calle VARCHAR(255) NOT NULL,
+    altura INT CHECK (altura > 0),
+    piso INT CHECK (piso >= 0),
+    departamento VARCHAR(50),
+    observaciones TEXT,
+    FOREIGN KEY (id_localidad) REFERENCES localidades(id_localidades) ON DELETE CASCADE
+);
+
+-- Tabla: vendedores
+CREATE TABLE vendedores (
+    id_vendedor SERIAL PRIMARY KEY,
+    nombre VARCHAR(255) NOT NULL,
+    apellido VARCHAR(255) NOT NULL,
+    id_direcciones INT,
+    tel VARCHAR(50) CHECK (tel ~ '^[0-9+\-() ]+$'),
+    observaciones TEXT,
+    FOREIGN KEY (id_direcciones) REFERENCES direcciones(id_direcciones) ON DELETE SET NULL
+);
+
+-- Tabla: user
+CREATE TABLE "user" (
+    id_user SERIAL PRIMARY KEY,
+    id_vendedor INT NOT NULL UNIQUE,
+    pass VARCHAR(255) NOT NULL CHECK (LENGTH(pass) >= 8),
+    FOREIGN KEY (id_vendedor) REFERENCES vendedores(id_vendedor) ON DELETE CASCADE
+);
+
+-- Tabla: clientes
+CREATE TABLE clientes (
+    id_cliente SERIAL PRIMARY KEY,
+    nombre VARCHAR(255) NOT NULL,
+    apellido VARCHAR(255) NOT NULL,
+    cuit VARCHAR(20) CHECK (cuit ~ '^[0-9]{11}$'),
+    dni VARCHAR(20) CHECK (dni ~ '^[0-9]{8}$'),
+    tel VARCHAR(50) CHECK (tel ~ '^[0-9+\-() ]+$'),
+    id_direcciones INT,
+    mail VARCHAR(255) CHECK (mail ~ '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'),
+    observaciones TEXT,
+    FOREIGN KEY (id_direcciones) REFERENCES direcciones(id_direcciones) ON DELETE SET NULL
+);
+
+-- Tabla: proveedores
+CREATE TABLE proveedores (
+    id_proveedor SERIAL PRIMARY KEY,
+    nombre VARCHAR(255) NOT NULL,
+    tel VARCHAR(50) CHECK (tel ~ '^[0-9+\-() ]+$'),
+    id_direcciones INT,
+    observaciones TEXT,
+    FOREIGN KEY (id_direcciones) REFERENCES direcciones(id_direcciones) ON DELETE SET NULL
+);
+
+-- Tabla: categoria
+CREATE TABLE categoria (
+    id_categoria SERIAL PRIMARY KEY,
+    descripcion TEXT NOT NULL,
+    observaciones TEXT
+);
+
+-- Tabla: subcategoria
+CREATE TABLE subcategoria (
+    id_subcategoria SERIAL PRIMARY KEY,
+    id_categoria INT NOT NULL,
+    descripcion TEXT NOT NULL,
+    observaciones TEXT,
+    FOREIGN KEY (id_categoria) REFERENCES categoria(id_categoria) ON DELETE CASCADE
+);
+
+-- Tabla: productos
+CREATE TABLE productos (
+    id_producto SERIAL PRIMARY KEY,
+    nombre VARCHAR(255) NOT NULL,
+    precio_costo DECIMAL(10, 2) CHECK (precio_costo >= 0),
+    precio_venta DECIMAL(10, 2) CHECK (precio_venta >= precio_costo),
+    unidad_medida VARCHAR(50),
+    id_subcategoria INT,
+    observaciones TEXT,
+    FOREIGN KEY (id_subcategoria) REFERENCES subcategoria(id_subcategoria) ON DELETE SET NULL
+);
+
+-- Tabla: tipos_molienda
+CREATE TABLE tipos_molienda (
+    id_tipo_molienda SERIAL PRIMARY KEY,
+    nombre VARCHAR(255) NOT NULL UNIQUE
+);
+
+-- Tabla: producto_tipo_molienda
+CREATE TABLE producto_tipo_molienda (
+    id_producto INT NOT NULL,
+    id_tipo_molienda INT NOT NULL,
+    PRIMARY KEY (id_producto, id_tipo_molienda),
+    FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE CASCADE,
+    FOREIGN KEY (id_tipo_molienda) REFERENCES tipos_molienda(id_tipo_molienda) ON DELETE CASCADE
+);
+
+-- Tabla: producto_proveedor
+CREATE TABLE producto_proveedor (
+    id_producto INT NOT NULL,
+    id_proveedor INT NOT NULL,
+    PRIMARY KEY (id_producto, id_proveedor),
+    FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE CASCADE,
+    FOREIGN KEY (id_proveedor) REFERENCES proveedores(id_proveedor) ON DELETE CASCADE
+);
+
+-- Tabla: estado_pedido
+CREATE TABLE estado_pedido (
+    id_estado_pedido SERIAL PRIMARY KEY,
+    descripcion TEXT NOT NULL
+);
+
+-- Tabla: promociones
+CREATE TABLE promociones (
+    id_promociones SERIAL PRIMARY KEY,
+    descripcion TEXT NOT NULL,
+    fecha_inicio DATE NOT NULL,
+    fecha_fin DATE NOT NULL CHECK (fecha_fin >= fecha_inicio),
+    activo BOOLEAN DEFAULT TRUE,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_modificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabla: descuentos
+CREATE TABLE descuentos (
+    id_descuentos SERIAL PRIMARY KEY,
+    tipo VARCHAR(50) NOT NULL,
+    valor DECIMAL(10, 2) NOT NULL CHECK (valor >= 0),
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_modificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Tabla: promocion_productos
+CREATE TABLE promocion_productos (
+    id_promocion_productos SERIAL PRIMARY KEY,
+    id_promociones INT NOT NULL,
+    id_descuentos INT NOT NULL,
+    id_producto INT NOT NULL,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_modificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_promociones) REFERENCES promociones(id_promociones) ON DELETE CASCADE,
+    FOREIGN KEY (id_descuentos) REFERENCES descuentos(id_descuentos) ON DELETE CASCADE,
+    FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE CASCADE
+);
+
+-- Tabla: formas_pago
+CREATE TABLE formas_pago (
+    id_formas_pago SERIAL PRIMARY KEY,
+    descripcion VARCHAR(255) NOT NULL UNIQUE
+);
+
+-- Tabla: pedidos
+CREATE TABLE pedidos (
+    id_pedido SERIAL PRIMARY KEY,
+    fecha_pedido TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    id_cliente INT NOT NULL,
+    total_pedido DECIMAL(10, 2) CHECK (total_pedido >= 0),
+    id_formas_pago INT,
+    observaciones TEXT,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_modificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_cliente) REFERENCES clientes(id_cliente) ON DELETE CASCADE,
+    FOREIGN KEY (id_formas_pago) REFERENCES formas_pago(id_formas_pago) ON DELETE SET NULL
+);
+
+-- Tabla: detalle_pedido
+CREATE TABLE detalle_pedido (
+    id_detalle_pedido SERIAL PRIMARY KEY,
+    id_pedido INT NOT NULL,
+    id_producto INT NOT NULL,
+    cantidad INT NOT NULL CHECK (cantidad > 0),
+    id_promocion_productos INT,
+    fecha_creacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_modificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (id_pedido) REFERENCES pedidos(id_pedido) ON DELETE CASCADE,
+    FOREIGN KEY (id_producto) REFERENCES productos(id_producto) ON DELETE CASCADE,
+    FOREIGN KEY (id_promocion_productos) REFERENCES promocion_productos(id_promocion_productos) ON DELETE SET NULL
+);
+
+-- Tabla: transporte
+CREATE TABLE transporte (
+    id_transporte SERIAL PRIMARY KEY,
+    descripcion TEXT NOT NULL,
+    tel VARCHAR(50) CHECK (tel ~ '^[0-9+\-() ]+$'),
+    id_direcciones INT,
+    FOREIGN KEY (id_direcciones) REFERENCES direcciones(id_direcciones) ON DELETE SET NULL
+);
+
+-- Tabla: despachos
+CREATE TABLE despachos (
+    id_despacho SERIAL PRIMARY KEY,
+    id_pedido INT NOT NULL,
+    direccion_envio TEXT NOT NULL,
+    metodo_envio TEXT,
+    fecha_estimada DATE CHECK (fecha_estimada >= CURRENT_DATE),
+    costo_envio DECIMAL(10, 2) CHECK (costo_envio >= 0),
+    id_transporte INT,
+    FOREIGN KEY (id_pedido) REFERENCES pedidos(id_pedido) ON DELETE CASCADE,
+    FOREIGN KEY (id_transporte) REFERENCES transporte(id_transporte) ON DELETE SET NULL
+);
